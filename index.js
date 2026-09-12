@@ -1605,7 +1605,7 @@ var init_config = __esm({
     init_workers();
     init_themePresets();
     extensionName = "st-chatu8";
-    extensionFolderPath = `scripts/extensions/third-party/${extensionName}`;
+    extensionFolderPath = new URL(".", import.meta.url).href.replace(/\/$/, "");
     EventType = {
       GENERATE_IMAGE_REQUEST: "generate-image-request",
       GENERATE_IMAGE_RESPONSE: "generate-image-response"
@@ -70854,7 +70854,7 @@ async function checkForUpdates() {
   const updateStatusElement = document.getElementById("ch-update-status");
   console.log("Checking for updates...");
   try {
-    const remoteManifestUrl = `https://raw.githubusercontent.com/damoshen123/st-chatu8/master/manifest.json?t=${(/* @__PURE__ */ new Date()).getTime()}`;
+    const remoteManifestUrl = `https://raw.githubusercontent.com/tOHSAKAlin0/st-chatu8/main/manifest.json?t=${(/* @__PURE__ */ new Date()).getTime()}`;
     const response = await fetch(remoteManifestUrl, { cache: "no-cache" });
     if (!response.ok) {
       console.error("Failed to fetch remote manifest for update check.");
@@ -83874,6 +83874,11 @@ async function removeFabIconImage() {
   applyFabSettings();
   toastr.success("\u5DF2\u6062\u590D\u9ED8\u8BA4\u60AC\u6D6E\u7403\u56FE\u6807\u3002");
 }
+async function fetchSettingsHtml(relativePath) {
+  const response = await fetch(`${extensionFolderPath}/${relativePath}?chatu8_build=2.8.4-history.2`, { cache: "no-store" });
+  if (!response.ok) throw new Error(`Failed to fetch ${relativePath}: HTTP ${response.status}`);
+  return response.text();
+}
 async function loadAllTabsContent(container) {
   if (!container) {
     console.error("Chatu8 UI Error: Tab content container not found.");
@@ -83920,10 +83925,7 @@ async function loadAllTabsContent(container) {
         }
         return Promise.resolve(aboutContent);
       }
-      return fetch(`${extensionFolderPath}/html/settings/${tabId}.html`).then((res) => {
-        if (!res.ok) throw new Error(`Failed to fetch ${tabId}.html`);
-        return res.text();
-      });
+      return fetchSettingsHtml(`html/settings/${tabId}.html`);
     });
     const htmlContents = await Promise.all(fetchPromises);
     const finalHtml = htmlContents.map((html, index) => {
@@ -83984,9 +83986,7 @@ async function initUI({ check_update: check_update2 }) {
   link.href = `${extensionFolderPath}/style.css`;
   document.head.appendChild(link);
   try {
-    const response = await fetch(`${extensionFolderPath}/settings.html`);
-    if (!response.ok) throw new Error("Failed to fetch settings.html");
-    const settingsHtml = await response.text();
+    const settingsHtml = await fetchSettingsHtml("settings.html");
     document.body.insertAdjacentHTML("beforeend", settingsHtml);
   } catch (error) {
     console.error("Chatu8 UI Error: Could not load main settings panel.", error);
@@ -85589,7 +85589,7 @@ function setUpdateStatus(text, cls) {
     el.className = `st-chatu8-update-status ${cls || ""}`.trim();
   }
 }
-var REINSTALL_GIT_URL = "https://github.com/damoshen123/st-chatu8.git";
+var REINSTALL_GIT_URL = "https://github.com/tOHSAKAlin0/st-chatu8.git";
 function showReinstallGuide(reason) {
   const existing = document.getElementById("st-chatu8-reinstall-guide");
   if (existing) existing.remove();
@@ -85837,7 +85837,7 @@ async function checkForUpdates2() {
   const updateNotesElement = document.getElementById("ch-update-notes");
   console.log("Checking for updates...", updateNotesElement);
   try {
-    const remoteManifestUrl = `https://raw.githubusercontent.com/damoshen123/st-chatu8/master/manifest.json?t=${(/* @__PURE__ */ new Date()).getTime()}`;
+    const remoteManifestUrl = `https://raw.githubusercontent.com/tOHSAKAlin0/st-chatu8/main/manifest.json?t=${(/* @__PURE__ */ new Date()).getTime()}`;
     const response = await fetch(remoteManifestUrl, { cache: "no-cache" });
     if (!response.ok) {
       console.error("Failed to fetch remote manifest for update check.");

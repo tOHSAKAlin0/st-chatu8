@@ -6,12 +6,12 @@ import hashlib
 root = Path(__file__).resolve().parents[1]
 output_dir = root.parent / 'releases'
 output_dir.mkdir(exist_ok=True)
-archive = output_dir / 'st-chatu8-history-prompts-v1.zip'
+archive = output_dir / 'st-chatu8-history-prompts-r2.zip'
 files = [root / name for name in (
-    'manifest.json', 'index.js', 'style.css', 'settings.html', 'LICENSE',
+    'manifest.json', 'index.js', 'history-prompts-r2.js', 'style.css', 'settings.html', 'LICENSE',
     'crypto-js.min.js', 'jszip.min.js', 'msgpack.min.js', 'transformers.min.js',
     'presets/novelai-v5-story-agent.json', 'presets/novelai-v5-story-agent-history.json',
-    'docs/history-image-prompts.md', 'tests/image-prompt-history.test.cjs',
+    'docs/history-image-prompts.md', 'tests/image-prompt-history.test.cjs', 'tests/settings-loading.test.cjs',
     'scripts/package-release.py',
 )]
 for folder in ('html', 'styles', 'tagData'):
