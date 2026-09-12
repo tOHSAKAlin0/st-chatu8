@@ -1,4 +1,7 @@
-docs/evidence/
+docs/
+tests/
+scripts/
+AGENTS.md
 .env
 .env.*
 *.log
