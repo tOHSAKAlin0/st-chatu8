@@ -314,6 +314,46 @@ export async function deleteRecords(context, rows, persist) {
   }
 }
 
+// JSON objects have no meaningful key order; cloud storage may reorder every object.
+function firstDifference(expected, actual, path = "记录") {
+  if (expected === actual) return null;
+  if (expected === null || actual === null || typeof expected !== "object" || typeof actual !== "object") return path;
+  if (Array.isArray(expected) !== Array.isArray(actual)) return path;
+  if (Array.isArray(expected)) {
+    if (expected.length !== actual.length) return `${path}.length`;
+    for (let index = 0; index < expected.length; index++) {
+      const difference = firstDifference(expected[index], actual[index], `${path}[${index}]`);
+      if (difference) return difference;
+    }
+    return null;
+  }
+  for (const key of new Set([...Object.keys(expected), ...Object.keys(actual)])) {
+    if (!Object.hasOwn(expected, key) || !Object.hasOwn(actual, key)) return `${path}.${key}`;
+    const difference = firstDifference(expected[key], actual[key], `${path}.${key}`);
+    if (difference) return difference;
+  }
+  return null;
+}
+
+function verifySavedChanges(data, expected) {
+  if (!Array.isArray(data)) throw new Error("保存后返回的聊天格式无效");
+  // Chat files have a metadata header; older group chat files may omit it.
+  const saved = data[0] && typeof data[0].mes !== "string" ? data.slice(1) : data;
+  for (const change of expected) {
+    const message = saved[change.id];
+    if (!message) throw new Error(`保存后未找到楼层 ${change.id}`);
+    const copies = [];
+    if ((message.swipe_id ?? 0) === change.swipe) copies.push(["消息主记录", message.extra?.[RECORD_KEY]]);
+    if (change.mirrored || (message.swipe_id ?? 0) !== change.swipe) copies.push(["swipe 副本", message.swipe_info?.[change.swipe]?.extra?.[RECORD_KEY]]);
+    for (const [label, record] of copies) {
+      const difference = firstDifference(change.record, record ?? null);
+      if (!difference) continue;
+      const reason = record == null ? "人物定义缺失" : change.record == null ? "人物定义尚未删除" : `${difference} 不一致`;
+      throw new Error(`楼层 ${change.id} / swipe ${change.swipe} 的${label}未确认：${reason}，请刷新后核对`);
+    }
+  }
+}
+
 // saveChatConditional in the host can swallow errors. Verify our fields through its read API.
 export async function persistAndVerify(context, changes, persist, fetcher, headers) {
   const group = context.groupId !== undefined && context.groupId !== null && context.groupId !== "";
@@ -321,26 +361,23 @@ export async function persistAndVerify(context, changes, persist, fetcher, heade
   if (!context.chatId || (!group && !character?.avatar)) throw new Error("无法确定聊天文件，未请求保存");
   const endpoint = group ? "/api/chats/group/get" : "/api/chats/get";
   const body = JSON.stringify(group ? { id: context.chatId } : { ch_name: character.name, file_name: context.chatId, avatar_url: character.avatar });
-  const expected = changes.map(change => ({ ...change, serialized: JSON.stringify(change.record ?? null),
+  const expected = changes.map(change => ({ ...change, record: JSON.parse(JSON.stringify(change.record ?? null)),
     mirrored: typeof context.chat[change.id]?.swipes?.[change.swipe] === "string" }));
   if (await persist() === false) throw new Error("聊天保存接口返回失败");
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 10000);
   try {
-    const response = await fetcher(endpoint, { method: "POST", headers, body, cache: "no-store", signal: controller.signal });
-    if (!response.ok) throw new Error(`保存后核对失败：HTTP ${response.status}`);
-    const data = await response.json();
-    if (!Array.isArray(data)) throw new Error("保存后返回的聊天格式无效");
-    // Chat files have a metadata header; older group chat files may omit it.
-    const saved = data[0] && typeof data[0].mes !== "string" ? data.slice(1) : data;
-    for (const change of expected) {
-      const message = saved[change.id];
-      if (!message) throw new Error(`保存后未找到楼层 ${change.id}`);
-      const copies = [];
-      if ((message.swipe_id ?? 0) === change.swipe) copies.push(message.extra?.[RECORD_KEY]);
-      if (change.mirrored || (message.swipe_id ?? 0) !== change.swipe) copies.push(message.swipe_info?.[change.swipe]?.extra?.[RECORD_KEY]);
-      if (!copies.length || copies.some(record => JSON.stringify(record ?? null) !== change.serialized)) {
-        throw new Error(`楼层 ${change.id} / swipe ${change.swipe} 的服务器记录未确认，请刷新后核对`);
+    for (const delay of [0, 250, 750]) {
+      if (delay) await new Promise(resolve => setTimeout(resolve, delay));
+      const response = await fetcher(endpoint, { method: "POST", headers, body, cache: "no-store", signal: controller.signal });
+      if (!response.ok) throw new Error(`保存后核对失败：HTTP ${response.status}`);
+      const data = await response.json();
+      try {
+        verifySavedChanges(data, expected);
+        return;
+      } catch (error) {
+        // Retry reads only: never resave a possibly changed chat to work around lag.
+        if (delay === 750) throw error;
       }
     }
   } finally { clearTimeout(timeout); }
