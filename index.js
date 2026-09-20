@@ -6,7 +6,7 @@
  * 尊重原创，从你我做起。
  * ====================================================
  */
-import * as characterDefinitions from "./character-definitions.js?chatu8_build=2.8.4-definitions.1";
+import * as characterDefinitions from "./character-definitions.js?chatu8_build=2.8.4-definitions.2";
 import { extension_settings } from "../../../extensions.js";
 import { saveSettingsDebounced } from "../../../../script.js";
 import { extension_settings as extension_settings2 } from "../../../extensions.js";
@@ -83960,7 +83960,7 @@ async function removeFabIconImage() {
   toastr.success("\u5DF2\u6062\u590D\u9ED8\u8BA4\u60AC\u6D6E\u7403\u56FE\u6807\u3002");
 }
 async function fetchSettingsHtml(relativePath) {
-  const response = await fetch(`${extensionFolderPath}/${relativePath}?chatu8_build=2.8.4-definitions.1`, { cache: "no-store" });
+  const response = await fetch(`${extensionFolderPath}/${relativePath}?chatu8_build=2.8.4-definitions.2`, { cache: "no-store" });
   if (!response.ok) throw new Error(`Failed to fetch ${relativePath}: HTTP ${response.status}`);
   return response.text();
 }
