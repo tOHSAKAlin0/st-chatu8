@@ -6,7 +6,7 @@
  * 尊重原创，从你我做起。
  * ====================================================
  */
-import * as characterDefinitions from "./character-definitions.js?chatu8_build=2.8.4-definitions.3";
+import * as characterDefinitions from "./character-definitions.js?chatu8_build=2.8.4-definitions.4";
 import { extension_settings } from "../../../extensions.js";
 import { saveSettingsDebounced } from "../../../../script.js";
 import { extension_settings as extension_settings2 } from "../../../extensions.js";
@@ -31654,7 +31654,8 @@ function showUserDemandPopup2() {
 async function persistCharacterDefinitions(changes) {
   const context = getContext12();
   const headers = context.getRequestHeaders?.() ?? getRequestHeaders(window.token);
-  return characterDefinitions.persistAndVerify(context, changes, saveChatConditional, fetch, headers);
+  // Pass the getter: verification re-checks that the same chat is still open before saving again.
+  return characterDefinitions.persistAndVerify(getContext12, changes, saveChatConditional, fetch, headers);
 }
 async function handlePromptRequest(el, gestureId) {
   // Capture before the demand popup or any other asynchronous processing.
@@ -31942,16 +31943,20 @@ async function handlePromptRequest(el, gestureId) {
     const parseTimer = debugTimer("parseImagesFromPrompt", "\u89E3\u6790\u56FE\u7247\u6807\u7B7E");
     const images = parseImagesFromPrompt(cleanedPrompt);
     if (images.length > 0 && definitionRequest) {
-      const parsedDefinitions = characterDefinitions.parseCharacters(cleanedPrompt);
+      const parsedDefinitions = characterDefinitions.parseDefinitions(cleanedPrompt);
       if (parsedDefinitions.status === "ready") {
         try {
-          await characterDefinitions.saveCharacters(definitionRequest, parsedDefinitions, getContext12, getImageTags, persistCharacterDefinitions);
+          const saved = await characterDefinitions.saveDefinitions(definitionRequest, parsedDefinitions, getContext12, getImageTags, persistCharacterDefinitions);
+          const notes = [];
+          if (saved.warnings.length) notes.push(`已跳过 ${saved.warnings.length} 条不完整条目：${saved.warnings.slice(0, 3).join("；")}`);
+          if (saved.saved && !saved.verified) notes.push(`服务器核对未完成（${saved.reason}），定义已保留在当前聊天，会随下次聊天保存写入。`);
+          if (notes.length) toastr.warning(notes.join("\n"), "视觉定义");
         } catch (error) {
           if (error.code === "ST_CHARACTER_DEFINITIONS_STALE") throw error;
-          toastr.warning(`人物定义保存未确认，内存记录已恢复：${error.message}`);
+          toastr.warning(`视觉定义保存未确认，内存记录已恢复：${error.message}`);
         }
       } else if (parsedDefinitions.status === "invalid") {
-        toastr.warning(`人物定义未保存，原记录已保留：${parsedDefinitions.reason}`);
+        toastr.warning(`视觉定义未保存，原记录已保留：${parsedDefinitions.reason}`);
       }
       checkDefinitionTarget();
     }
@@ -83960,7 +83965,7 @@ async function removeFabIconImage() {
   toastr.success("\u5DF2\u6062\u590D\u9ED8\u8BA4\u60AC\u6D6E\u7403\u56FE\u6807\u3002");
 }
 async function fetchSettingsHtml(relativePath) {
-  const response = await fetch(`${extensionFolderPath}/${relativePath}?chatu8_build=2.8.4-definitions.3`, { cache: "no-store" });
+  const response = await fetch(`${extensionFolderPath}/${relativePath}?chatu8_build=2.8.4-definitions.4`, { cache: "no-store" });
   if (!response.ok) throw new Error(`Failed to fetch ${relativePath}: HTTP ${response.status}`);
   return response.text();
 }
